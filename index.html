@@ -1,91 +1,56 @@
-/* style.css */
-:root {
-    --bg-color: #0d1117;
-    --text-color: #00ff00;
-    --accent-color: #00cc00;
-    --border-color: #333;
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberCTF - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="api.js"></script>
+</head>
+<body>
 
-body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-family: 'Courier New', Courier, monospace;
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
+    <div class="container" style="max-width: 400px; margin-top: 10vh;">
+        <h1>ACCESO AL SISTEMA</h1>
+        <p style="text-align: center;">Introduce tu alias para comenzar el entrenamiento.</p>
+        
+        <input type="text" id="usernameInput" placeholder="Nombre de usuario" autocomplete="off">
+        <button onclick="login()">INICIAR SESIÓN</button>
+        <p id="statusMsg" style="text-align: center; margin-top: 10px;"></p>
+    </div>
 
-h1, h2, h3 {
-    text-align: center;
-    text-shadow: 0 0 5px var(--text-color);
-}
+    <script>
+        // Redirigir si ya está logueado
+        if (localStorage.getItem("ctf_username")) {
+            window.location.href = "dashboard.html";
+        }
 
-.container {
-    width: 100%;
-    max-width: 800px;
-    background: #161b22;
-    padding: 20px;
-    border: 1px solid var(--text-color);
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
-}
+        async function login() {
+            const user = document.getElementById("usernameInput").value.trim();
+            const status = document.getElementById("statusMsg");
+            
+            if (!user) {
+                status.innerText = "Error: Nombre vacío.";
+                return;
+            }
 
-input[type="text"], input[type="password"] {
-    background: black;
-    color: var(--text-color);
-    border: 1px solid var(--text-color);
-    padding: 10px;
-    width: calc(100% - 22px);
-    font-family: 'Courier New', Courier, monospace;
-    margin-bottom: 10px;
-}
-
-button {
-    background: transparent;
-    color: var(--text-color);
-    border: 1px solid var(--text-color);
-    padding: 10px 20px;
-    cursor: pointer;
-    font-family: 'Courier New', Courier, monospace;
-    transition: 0.2s;
-    width: 100%;
-}
-
-button:hover {
-    background: var(--text-color);
-    color: black;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
-
-th, td {
-    border: 1px solid var(--text-color);
-    padding: 10px;
-    text-align: left;
-}
-
-th {
-    background-color: rgba(0, 255, 0, 0.1);
-}
-
-.nav-links {
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.nav-links a {
-    color: var(--text-color);
-    text-decoration: none;
-    margin: 0 15px;
-    border-bottom: 1px solid transparent;
-}
-
-.nav-links a:hover {
-    border-bottom: 1px solid var(--text-color);
-}
+            status.innerText = "Conectando al servidor...";
+            
+            try {
+                // Llama a la función de api.js
+                await registrarUsuario(user);
+                // Si funciona (o si el usuario ya existe y Supabase devuelve un error controlado que ajustaste)
+                localStorage.setItem("ctf_username", user);
+                window.location.href = "dashboard.html";
+            } catch (error) {
+                // Si el usuario ya existe, simplemente lo dejamos entrar
+                if (error.message.includes("ya existe")) {
+                    localStorage.setItem("ctf_username", user);
+                    window.location.href = "dashboard.html";
+                } else {
+                    status.innerText = "Error en la conexión.";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
