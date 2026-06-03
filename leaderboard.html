@@ -1,1 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberCTF - Ranking</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="api.js"></script>
+</head>
+<body>
 
+    <div class="nav-links">
+        <a href="dashboard.html">[ DASHBOARD ]</a>
+        <a href="leaderboard.html">[ LEADERBOARD ]</a>
+        <a href="#" onclick="logout()">[ SALIR ]</a>
+    </div>
+
+    <div class="container">
+        <h2>TABLA DE CLASIFICACIÓN GLOBAL</h2>
+        <button onclick="cargarRanking()" style="margin-bottom: 10px;">ACTUALIZAR DATOS</button>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Rango</th>
+                    <th>Operador (Usuario)</th>
+                    <th>Puntaje Total</th>
+                </tr>
+            </thead>
+            <tbody id="rankingBody">
+                <tr><td colspan="3">Cargando datos desde el servidor central...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const currentUser = localStorage.getItem("ctf_username");
+        if (!currentUser) window.location.href = "index.html";
+
+        async function cargarRanking() {
+            const tbody = document.getElementById("rankingBody");
+            tbody.innerHTML = "<tr><td colspan='3'>Cargando...</td></tr>";
+            
+            const datos = await obtenerLeaderboard(); // Llama a api.js
+            
+            tbody.innerHTML = "";
+            if (datos.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='3'>No hay registros todavía.</td></tr>";
+                return;
+            }
+
+            datos.forEach((user, index) => {
+                const tr = document.createElement("tr");
+                // Resaltar al usuario actual
+                if (user.username === currentUser) tr.style.backgroundColor = "rgba(0, 255, 0, 0.2)";
+                
+                tr.innerHTML = `
+                    <td>#${index + 1}</td>
+                    <td>${user.username}</td>
+                    <td>${user.puntaje} pts</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem("ctf_username");
+            window.location.href = "index.html";
+        }
+
+        // Cargar al inicio
+        cargarRanking();
+    </script>
+</body>
+</html>
