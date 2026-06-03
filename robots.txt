@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /flag_storage/
+Disallow: /vigenere
+
+# Clave Vigenère: vigenere
+# flag{robots_disallow}

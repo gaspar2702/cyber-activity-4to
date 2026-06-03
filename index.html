@@ -3,54 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberCTF - Login</title>
+    <title>CyberCTF // ACCESO AL SISTEMA</title>
     <link rel="stylesheet" href="style.css">
-    <script src="api.js"></script>
+    <script src="api.js" defer></script>
+    <style>
+        .typing-line { overflow: hidden; white-space: nowrap; border-right: 2px solid var(--green); animation: typing 2s steps(40,end) both, cursor-blink .8s step-end infinite; width: fit-content; margin: 0 auto; }
+        @keyframes typing { from{width:0} to{width:100%} }
+        @keyframes cursor-blink { 0%,100%{border-color:var(--green)} 50%{border-color:transparent} }
+        .boot-log { font-size: 11px; color: var(--text-dim); text-align: left; margin-bottom: 20px; max-height: 64px; overflow: hidden; }
+        .boot-log span { display: block; animation: fadeUp .3s ease both; }
+    </style>
 </head>
 <body>
 
-    <div class="container" style="max-width: 400px; margin-top: 10vh;">
-        <h1>ACCESO AL SISTEMA</h1>
-        <p style="text-align: center;">Introduce tu alias para comenzar el entrenamiento.</p>
-        
-        <input type="text" id="usernameInput" placeholder="Nombre de usuario" autocomplete="off">
-        <button onclick="login()">INICIAR SESIÓN</button>
-        <p id="statusMsg" style="text-align: center; margin-top: 10px;"></p>
-    </div>
+<div class="login-wrap">
+    <div class="login-box fade-up">
 
-    <script>
-        // Redirigir si ya está logueado
-        if (localStorage.getItem("ctf_username")) {
-            window.location.href = "dashboard.html";
+        <div class="login-logo">
+            <h1 class="glitch">CYBER<span style="color:var(--cyan)">CTF</span></h1>
+            <div class="subtitle">// SISTEMA DE ENTRENAMIENTO EN CIBERSEGURIDAD</div>
+        </div>
+
+        <div class="boot-log" id="bootLog"></div>
+
+        <div style="margin-bottom: 14px;">
+            <label style="font-size:11px; letter-spacing:2px; color:var(--text-dim); display:block; margin-bottom:6px;">ALIAS DE OPERADOR</label>
+            <input type="text" id="usernameInput" placeholder="ingresa tu nombre..." autocomplete="off" maxlength="32">
+        </div>
+
+        <button onclick="login()" id="loginBtn" style="width:100%; margin-bottom:10px;">
+            INICIAR SESIÓN
+        </button>
+
+        <div id="statusMsg" class="alert" style="display:none;"></div>
+
+        <div style="margin-top: 20px; font-size: 11px; color: var(--text-dim); text-align:center;">
+            30 DESAFÍOS · WEB · CRYPTO · OSINT · TERMINAL
+        </div>
+    </div>
+</div>
+
+<script>
+    // Redirect if already logged in
+    if (localStorage.getItem("ctf_username")) {
+        window.location.href = "dashboard.html";
+    }
+
+    // Boot animation
+    const bootLines = [
+        "BIOS v2.4.1 … OK",
+        "Cargando módulo de seguridad … OK",
+        "Conectando al servidor central … OK",
+        "Sistema listo. Esperando operador …"
+    ];
+    const bootLog = document.getElementById("bootLog");
+    bootLines.forEach((line, i) => {
+        setTimeout(() => {
+            const s = document.createElement("span");
+            s.style.animationDelay = "0s";
+            s.textContent = `[ ${i < bootLines.length-1 ? "OK" : "!!"} ] ${line}`;
+            s.style.color = i === bootLines.length-1 ? "var(--green)" : "var(--text-dim)";
+            bootLog.appendChild(s);
+        }, i * 400);
+    });
+
+    document.getElementById("usernameInput").addEventListener("keydown", e => {
+        if (e.key === "Enter") login();
+    });
+
+    async function login() {
+        const user = document.getElementById("usernameInput").value.trim();
+        const status = document.getElementById("statusMsg");
+        const btn = document.getElementById("loginBtn");
+
+        if (!user || user.length < 2) {
+            showMsg("Error: nombre de usuario muy corto.", "err");
+            return;
+        }
+        if (!/^[a-zA-Z0-9_\-\.]+$/.test(user)) {
+            showMsg("Solo letras, números, _ y - permitidos.", "err");
+            return;
         }
 
-        async function login() {
-            const user = document.getElementById("usernameInput").value.trim();
-            const status = document.getElementById("statusMsg");
-            
-            if (!user) {
-                status.innerText = "Error: Nombre vacío.";
+        btn.disabled = true;
+        showMsg("Conectando al servidor …", "inf");
+
+        try {
+            await registrarUsuario(user);
+        } catch (e) {
+            if (!e.message.includes("ya existe")) {
+                showMsg("Error de conexión. Intenta de nuevo.", "err");
+                btn.disabled = false;
                 return;
             }
-
-            status.innerText = "Conectando al servidor...";
-            
-            try {
-                // Llama a la función de api.js
-                await registrarUsuario(user);
-                // Si funciona (o si el usuario ya existe y Supabase devuelve un error controlado que ajustaste)
-                localStorage.setItem("ctf_username", user);
-                window.location.href = "dashboard.html";
-            } catch (error) {
-                // Si el usuario ya existe, simplemente lo dejamos entrar
-                if (error.message.includes("ya existe")) {
-                    localStorage.setItem("ctf_username", user);
-                    window.location.href = "dashboard.html";
-                } else {
-                    status.innerText = "Error en la conexión.";
-                }
-            }
         }
-    </script>
+
+        showMsg("Acceso concedido. Redirigiendo …", "ok");
+        localStorage.setItem("ctf_username", user);
+        setTimeout(() => window.location.href = "dashboard.html", 800);
+    }
+
+    function showMsg(text, type) {
+        const el = document.getElementById("statusMsg");
+        el.style.display = "block";
+        el.className = `alert alert-${type}`;
+        el.textContent = `> ${text}`;
+    }
+</script>
 </body>
 </html>
