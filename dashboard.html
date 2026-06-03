@@ -6,6 +6,100 @@
     <title>CyberCTF // PANEL DE CONTROL</title>
     <link rel="stylesheet" href="style.css">
     <script src="api.js"></script>
+    <style>
+        .cat-section { margin-bottom: 6px; }
+        .cat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: var(--bg4);
+            border-radius: var(--radius);
+            margin-bottom: 6px;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid var(--border2);
+        }
+        .cat-header:hover { border-color: var(--border); }
+        .cat-header-title { font-size: 11px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
+        .cat-header-stats { font-size: 11px; color: var(--text-dim); margin-left: auto; }
+        .cat-header-icon { font-size: 14px; }
+        .cat-arrow { color: var(--text-dim); font-size: 10px; transition: transform .2s; }
+        .cat-arrow.open { transform: rotate(90deg); }
+
+        .challenge-row { cursor: pointer; }
+        .challenge-row.solved { cursor: default; }
+
+        .solve-check {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+        .solve-check.done {
+            background: var(--green-faint);
+            border-color: var(--green-dim);
+            color: var(--green);
+        }
+
+        /* Points badge next to title */
+        .pts-tag {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--yellow);
+            background: var(--yellow-dim);
+            border: 1px solid rgba(255,204,0,0.2);
+            border-radius: 3px;
+            padding: 1px 8px;
+        }
+
+        /* Flag submit inline inside modal */
+        .modal-flag-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .modal-flag-row input { flex: 1; }
+
+        /* Team info in stat area */
+        .team-stat-label { font-size: 10px; letter-spacing: 1.5px; color: var(--cyan); text-transform: uppercase; display: block; margin-bottom: 3px; }
+        .team-stat-value { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--cyan); }
+
+        .members-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 0 4px; }
+        .member-pill {
+            font-size: 10px;
+            padding: 3px 12px;
+            border-radius: 20px;
+            background: var(--bg4);
+            border: 1px solid var(--border2);
+            color: var(--text-dim);
+        }
+        .member-pill.me { background: var(--green-faint); border-color: rgba(0,255,136,0.2); color: var(--green); }
+
+        .result-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 300;
+            max-width: 360px;
+            padding: 14px 20px;
+            border-radius: var(--radius);
+            border-left: 3px solid;
+            font-size: 13px;
+            animation: toastIn .3s ease;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        @keyframes toastIn { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform: translateX(0); } }
+        .toast-ok  { border-color: var(--green); color: var(--green); background: var(--bg2); }
+        .toast-err { border-color: var(--red);   color: var(--red);   background: var(--bg2); }
+        .toast-inf { border-color: var(--cyan);  color: var(--cyan);  background: var(--bg2); }
+    </style>
 </head>
 <body>
 
@@ -13,176 +107,208 @@
 <div class="nav">
     <div class="nav-brand">CYBERCTF</div>
     <div class="nav-links">
-        <a href="dashboard.html" class="active">DASHBOARD</a>
-        <a href="leaderboard.html">RANKING</a>
-        <a href="terminal.html">TERMINAL</a>
-        <a href="#" onclick="logout()">SALIR</a>
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="leaderboard.html">Ranking</a>
+        <a href="terminal.html">Terminal</a>
+        <a href="#" onclick="logout()">Salir</a>
     </div>
-    <div class="nav-user">OP: <span id="navUser">—</span></div>
+    <div class="nav-user">
+        <span id="navUser">—</span>
+        <span class="team-badge" id="navTeam">sin equipo</span>
+    </div>
 </div>
 
 <div class="page-wrap">
 
-    <!-- STATS ROW -->
-    <div class="stats-row fade-up">
-        <div class="stat-card">
-            <div class="stat-value" id="statScore">0</div>
-            <div class="stat-label">Puntaje Total</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statSolved">0</div>
-            <div class="stat-label">Resueltos</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statRemain">30</div>
-            <div class="stat-label">Restantes</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statRank">—</div>
-            <div class="stat-label">Posición Global</div>
+    <!-- TOP: STATS + TEAM INFO -->
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; margin-bottom: 16px; align-items: start;" class="fade-up">
+        <!-- Stats -->
+        <div class="stats-row" style="margin-bottom:0;">
+            <div class="stat-card team">
+                <div class="stat-label">Puntaje Equipo</div>
+                <div class="stat-value" id="statTeamScore">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Resueltos</div>
+                <div class="stat-value" id="statSolved">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Restantes</div>
+                <div class="stat-value" id="statRemain">30</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Posición</div>
+                <div class="stat-value" id="statRank">—</div>
+            </div>
         </div>
     </div>
 
-    <!-- PROGRESS -->
-    <div class="panel fade-up" style="padding: 16px 24px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:11px; letter-spacing:2px; color:var(--text-dim);">PROGRESO TOTAL</span>
-            <span id="progressPct" style="font-family:var(--font-hud); font-size:12px; color:var(--green);">0%</span>
+    <!-- PROGRESS PANEL -->
+    <div class="panel fade-up fade-up-d1" style="padding: 16px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:10px; letter-spacing:2px; color:var(--text-dim);">PROGRESO DEL EQUIPO</span>
+            <span id="progressPct" style="font-family:var(--font-mono); font-size:12px; color:var(--cyan); font-weight:600;">0%</span>
         </div>
         <div class="progress-track">
-            <div class="progress-bar" id="progressBar" style="width:0%"></div>
+            <div class="progress-bar progress-bar-team" id="progressBar" style="width:0%"></div>
         </div>
+        <div id="membersRow" class="members-row"></div>
     </div>
 
     <!-- FLAG SUBMIT -->
-    <div class="panel fade-up">
-        <div class="panel-title">// ENVIAR FLAG</div>
-        <div class="flag-row">
-            <input type="text" class="id-input" id="desafioId" placeholder="ID (ej. 01)" maxlength="4">
-            <input type="text" id="flagInput" placeholder="flag{...}">
-            <button onclick="submitFlag()">EJECUTAR</button>
+    <div class="panel fade-up fade-up-d2">
+        <div class="panel-title">Enviar Flag</div>
+        <div style="display:flex; gap:8px; align-items:stretch; flex-wrap:wrap;">
+            <input type="text" id="desafioId" placeholder="ID (ej. 01)" maxlength="4" style="max-width:80px;">
+            <input type="text" id="flagInput" placeholder="flag{...}" style="flex:1; min-width:200px;">
+            <button onclick="submitFlag()" id="submitBtn">⚡ EJECUTAR</button>
         </div>
-        <div id="flagResult" style="margin-top:8px; display:none;" class="alert"></div>
+        <div style="font-size:10px; color:var(--text-dim); margin-top:8px;">
+            Haz clic en cualquier desafío para ver su descripción y enviar la flag directamente desde ahí.
+        </div>
     </div>
 
     <!-- CHALLENGE LIST -->
-    <div class="panel fade-up">
-        <div class="panel-title">// LISTA DE DESAFÍOS</div>
-
-        <!-- Category Tabs -->
-        <div class="tabs" id="catTabs">
-            <button class="tab active" onclick="filterCat('all', this)">TODOS</button>
-            <button class="tab" onclick="filterCat('Web', this)">WEB</button>
-            <button class="tab" onclick="filterCat('Crypto', this)">CRYPTO</button>
-            <button class="tab" onclick="filterCat('OSINT', this)">OSINT</button>
-            <button class="tab" onclick="filterCat('Terminal', this)">TERMINAL</button>
+    <div class="panel fade-up fade-up-d3">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+            <div class="panel-title" style="margin-bottom:0;">Desafíos</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;" id="catTabs">
+                <button class="tab active" onclick="filterCat('all', this)">Todos</button>
+                <button class="tab" onclick="filterCat('Web', this)">🌐 Web</button>
+                <button class="tab" onclick="filterCat('Crypto', this)">🔐 Crypto</button>
+                <button class="tab" onclick="filterCat('OSINT', this)">🔍 OSINT</button>
+                <button class="tab" onclick="filterCat('Terminal', this)">💻 Terminal</button>
+            </div>
         </div>
-
         <div id="challengeList">
             <div style="color:var(--text-dim); font-size:12px; padding:12px 0;">Cargando desafíos…</div>
         </div>
     </div>
 
-</div><!-- /page-wrap -->
+</div>
 
-<!-- CHALLENGE DETAIL MODAL -->
+<!-- CHALLENGE MODAL -->
 <div class="modal-overlay" id="challengeModal">
-    <div class="modal">
-        <button class="modal-close" onclick="closeModal()">✕</button>
-        <div class="modal-title" id="modalTitle">DESAFÍO</div>
+    <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title" id="modalTitle">DESAFÍO</div>
+                <div class="modal-subtitle" id="modalSubtitle"></div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+
         <div class="modal-body" id="modalBody"></div>
-        <button onclick="fillId()" id="modalFillBtn" style="font-size:11px; padding:8px 16px;">
-            USAR ESTE ID
-        </button>
-        <button onclick="showHint()" style="font-size:11px; padding:8px 16px; margin-left:8px; border-color:var(--yellow); color:var(--yellow);">
-            PISTA
-        </button>
-        <div class="hint-box" id="hintBox"></div>
+
+        <div id="solvedBanner" class="solved-banner" style="display:none;">
+            <span style="font-size:18px;">✅</span>
+            <span>Tu equipo ya resolvió este desafío</span>
+        </div>
+
+        <div id="modalFlagSection">
+            <div class="hint-box" id="hintBox"></div>
+            <div class="modal-flag-row" id="modalFlagRow">
+                <input type="text" id="modalFlagInput" placeholder="flag{...}" autocomplete="off">
+                <button onclick="submitFlagModal()" id="modalSubmitBtn">ENVIAR</button>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="btn-secondary" onclick="showHint()" style="font-size:10px; padding:6px 14px;">💡 Pista</button>
+                <a href="terminal.html" id="terminalLink" style="display:none; margin-left:8px;">
+                    <button class="btn-cyan" style="font-size:10px; padding:6px 14px;">💻 Abrir Terminal</button>
+                </a>
+            </div>
+        </div>
+        <div id="modalFlagResult" class="alert" style="display:none; margin-top:12px;"></div>
     </div>
 </div>
 
 <script>
-// ── AUTH ────────────────────────────────────────
-const currentUser = localStorage.getItem("ctf_username");
-if (!currentUser) window.location.href = "index.html";
-document.getElementById("navUser").textContent = currentUser;
+// ── AUTH ──────────────────────────────────────────
+const currentUser  = localStorage.getItem("ctf_username");
+const equipoId     = localStorage.getItem("ctf_equipo_id");
+const equipoNombre = localStorage.getItem("ctf_equipo_nombre") || "equipo";
 
-function logout() {
-    localStorage.removeItem("ctf_username");
+if (!currentUser || !equipoId) {
     window.location.href = "index.html";
 }
 
-// ── CHALLENGE METADATA (descriptions + hints) ──
+document.getElementById("navUser").textContent   = currentUser;
+document.getElementById("navTeam").textContent   = equipoNombre;
+
+function logout() {
+    localStorage.removeItem("ctf_username");
+    localStorage.removeItem("ctf_equipo_id");
+    localStorage.removeItem("ctf_equipo_nombre");
+    window.location.href = "index.html";
+}
+
+// ── CHALLENGE METADATA ───────────────────────────
 const META = {
-    "01": { desc: 'Abre DevTools (F12) → pestaña "Elements" o "Inspector". Busca en el código HTML de esta página un comentario oculto <code>&lt;!-- --&gt;</code> que contiene la flag.', hint: "Usa Ctrl+F en el inspector y busca la palabra 'flag'.", special: null },
-    "02": { desc: 'En el inspector de elementos, busca un elemento con el estilo <code>display: none</code>. Elimina esa propiedad CSS para hacer el texto visible. La flag estará ahí.', hint: "Busca un &lt;span&gt; o &lt;div&gt; invisible en la tabla de desafíos.", special: null },
-    "03": { desc: 'Hay un botón con el atributo <code>disabled</code> en esta página. Encuéntralo con el inspector y elimina ese atributo para poder hacer clic.', hint: "Busca <code>disabled</code> en el HTML del panel de desafíos.", special: "btn03" },
-    "04": { desc: 'Abre la consola de DevTools (F12 → Console) y escribe exactamente: <code>printFlag()</code> y presiona Enter.', hint: "La función está definida en el JS de esta página.", special: null },
-    "05": { desc: 'Abre DevTools → Application → Cookies. Busca la cookie <code>admin</code> con valor <code>false</code> y cámbiala a <code>true</code>. Luego recarga la página y encontrarás la flag.', hint: "O escribe en consola: <code>document.cookie = 'admin=true'</code> y recarga.", special: null },
-    "06": { desc: 'Ve a DevTools → Application → Local Storage. Encuentra la clave <code>premium</code> y cambia su valor de <code>false</code> a <code>true</code>. La sección de pago desbloqueada mostrará la flag.', hint: "O en consola: <code>localStorage.setItem('premium','true')</code> y recarga.", special: null },
-    "07": { desc: 'Abre DevTools → Network. Recarga la página (F5) y busca la primera petición al servidor. Revisa sus <b>Response Headers</b> en busca de un header llamado <code>X-Secret</code>.', hint: "Filtra por 'Doc' o 'All' en la pestaña Network.", special: null },
-    "08": { desc: 'Abre DevTools → Sources y encuentra el archivo <code>api.js</code>. Lee el código cuidadosamente. Hay una contraseña escrita directamente en el código JavaScript.', hint: "Busca una variable que contenga la palabra 'password' o 'pass'.", special: null },
-    "09": { desc: 'Usa el inspector de elementos y busca un elemento con estilos <code>::before</code> o <code>::after</code>. La propiedad <code>content</code> de ese pseudo-elemento contiene la flag.', hint: "En el inspector, haz clic en el ícono de filtro de estilos y mira el panel Computed.", special: null },
-    "10": { desc: 'Abre DevTools → Console y escribe <code>FLAG_PARTS</code>. Verás un array con fragmentos. Únelos en orden con <code>FLAG_PARTS.join("")</code>.', hint: "O mira el source de la página y busca el array FLAG_PARTS.", special: null },
-    "11": { desc: 'Decodifica este string Base64 en un decoder online (base64decode.org): <br><code>ZmxhZ3tkZWNvZGlmaWNhZG9fYjY0fQ==</code>', hint: "Base64 termina siempre con = o ==. Pégalo tal cual en el decodificador.", special: null },
-    "12": { desc: 'Decodifica este texto usando el Cifrado César con desplazamiento de 3: <br><code>iodj{yhql_ylgl_ylfl}</code>', hint: "Cada letra se desplaza 3 posiciones hacia atrás. 'i' → 'f', 'o' → 'l', etc.", special: null },
-    "13": { desc: 'Convierte este string binario a texto ASCII: <br><code>01100110 01101100 01100001 01100111 01111011 01100010 01101001 01101110 01100001 01110010 01111001 01011111 01110100 01101111 01011111 01100001 01110011 01100011 01101001 01101001 01111101</code>', hint: "Usa rapidtables.com/convert/number/binary-to-ascii.html", special: null },
-    "14": { desc: 'Convierte este string hexadecimal a texto: <br><code>666c61677b6865785f6465636f6465645f6f6b7d</code>', hint: "Usa un conversor online: rapidtables.com/convert/number/hex-to-ascii.html", special: null },
-    "15": { desc: 'Decodifica este texto con cifrado Vigenère. La clave está en el archivo <code>/robots.txt</code> de este sitio (la palabra en Disallow). <br>Texto: <code>mkff{gsccvcpc_qzmocsn}</code>', hint: "La clave es la ruta que aparece en robots.txt sin la barra diagonal.", special: null },
-    "16": { desc: 'Traduce este código Morse a texto: <br><code>..-. .-.. .- --. { -- --- .-. ... . / -.. . -.-. --- -.. . -.. }</code>', hint: "Usa morsedecoder.com o simplemente busca una tabla Morse.", special: null },
-    "17": { desc: 'Abre la consola (F12) y escribe <code>decryptChallenge17()</code>. Analiza la función que aparece y ejecútala para obtener la flag.', hint: "La función aplica una operación XOR simple. Puedes leerla en DevTools → Sources.", special: null },
-    "18": { desc: 'Navega a la URL: <code>[tu-sitio]/robots.txt</code><br>En GitHub Pages sería: <code>https://[usuario].github.io/[repo]/robots.txt</code><br>Busca la flag en el contenido.', hint: "robots.txt está en la raíz del repositorio.", special: null },
-    "19": { desc: 'Ve a <a href="https://web.archive.org" target="_blank" style="color:var(--cyan)">archive.org</a> y busca el dominio <code>ctf-ejemplo-2023.com</code>. Navega a una versión de febrero 2023 y busca la flag en el encabezado de la página.', hint: "Usa el calendario de Wayback Machine para seleccionar la fecha exacta.", special: null },
-    "20": { desc: 'Busca en Instagram el perfil <code>@ctf_dummy_profile_2024</code>. La flag está en la sección de descripción/bio.', hint: "No necesitas iniciar sesión en Instagram para ver una bio.", special: null },
-    "21": { desc: 'Usa Google con este dork exacto: <br><code>filetype:pdf site:github.com ctf-secret-document-2024</code><br>Abre el PDF y busca la flag dentro.', hint: "Google Dorks limitan la búsqueda a un tipo de archivo y dominio específicos.", special: null },
-    "22": { desc: 'Descarga la imagen desde el dashboard (archivo <code>assets/foto_reto22.jpg</code>). Súbela a <a href="https://exifinfo.org" target="_blank" style="color:var(--cyan)">exifinfo.org</a> y lee las coordenadas GPS en los metadatos EXIF. La flag es <code>flag{lat_long}</code> con las coordenadas.', hint: "Los datos GPS en EXIF se expresan en grados, minutos y segundos.", special: null },
-    "23": { desc: 'Ve a <a href="https://mxtoolbox.com/TXTLookup.aspx" target="_blank" style="color:var(--cyan)">mxtoolbox.com</a> y busca los registros TXT del dominio <code>ctf-challenge.example.com</code>. La flag está en uno de los registros.', hint: "Los registros TXT del DNS pueden contener cualquier texto, incluyendo flags.", special: null },
-    "24": { desc: 'Abre el <a href="terminal.html" style="color:var(--yellow)">emulador de terminal</a> y escribe <code>ls -la</code> para listar todos los archivos, incluyendo los ocultos (que empiezan con punto).', hint: "Los archivos ocultos en Linux empiezan con '.' — la opción -a los muestra.", special: null },
-    "25": { desc: 'Después de resolver el desafío 24, usa el comando <code>cat .secret_flag</code> en el terminal para leer el contenido del archivo oculto.', hint: "cat lee el contenido de un archivo y lo imprime en la pantalla.", special: null },
-    "26": { desc: 'En el terminal, escribe: <code>grep password /var/log/access.log</code> para buscar la cadena "password" dentro del enorme archivo de logs.', hint: "grep filtra líneas que contienen el patrón especificado.", special: null },
-    "27": { desc: 'En el terminal, escribe: <code>nmap 10.0.0.5</code> para escanear los puertos del servidor simulado. La flag está en el output del escaneo.', hint: "Un escaneo de puertos muestra qué servicios están corriendo en un host.", special: null },
-    "28": { desc: 'En el terminal, navega con: <code>cd admin_backup</code> y luego lee el archivo: <code>cat flag.txt</code>', hint: "cd = change directory. Usa ls para ver qué hay en cada carpeta.", special: null },
-    "29": { desc: 'En el terminal, escribe el comando: <code>whoami</code>. El nombre del usuario actual ES la flag.', hint: "whoami muestra el nombre del usuario con el que estás logueado en el sistema.", special: null },
-    "30": { desc: 'Usando las credenciales encontradas en desafíos anteriores (usuario: <code>root</code>, contraseña encontrada en desafío 08), escribe en el terminal: <code>ssh root@10.0.0.5</code>', hint: "Necesitas la contraseña del desafío 08 (Bad Logic). ¿La encontraste?", special: null },
+    "01": { desc: 'Abre DevTools (F12) → pestaña "Elements". Busca en el código HTML un comentario oculto <code>&lt;!-- --&gt;</code> que contiene la flag.', hint: "Usa Ctrl+F en el inspector y busca la palabra 'flag'.", terminal: false },
+    "02": { desc: 'En el inspector de elementos, busca un elemento con el estilo <code>display: none</code>. Elimina esa propiedad CSS para hacer el texto visible.', hint: "Busca un &lt;span&gt; o &lt;div&gt; invisible en la tabla de desafíos.", terminal: false },
+    "03": { desc: 'Hay un botón con el atributo <code>disabled</code> en esta página. Encuéntralo con el inspector y elimina ese atributo para poder hacer clic.', hint: "Busca <code>disabled</code> en el HTML del panel.", terminal: false, special: "btn03" },
+    "04": { desc: 'Abre la consola de DevTools (F12 → Console) y escribe exactamente: <code>printFlag()</code> y presiona Enter.', hint: "La función está definida en el JS de esta página.", terminal: false },
+    "05": { desc: 'Abre DevTools → Application → Cookies. Busca la cookie <code>admin</code> con valor <code>false</code> y cámbiala a <code>true</code>. Luego recarga la página y encontrarás la flag.', hint: "O escribe en consola: <code>document.cookie = 'admin=true'</code> y recarga.", terminal: false },
+    "06": { desc: 'Ve a DevTools → Application → Local Storage. Encuentra la clave <code>premium</code> y cambia su valor de <code>false</code> a <code>true</code>. La sección de pago desbloqueada mostrará la flag.', hint: "O en consola: <code>localStorage.setItem('premium','true')</code> y recarga.", terminal: false },
+    "07": { desc: 'Abre DevTools → Network. Recarga la página (F5) y busca la primera petición. Revisa sus <b>Response Headers</b> en busca de un header llamado <code>X-Secret</code>.', hint: "Filtra por 'Doc' o 'All' en la pestaña Network.", terminal: false },
+    "08": { desc: 'Abre DevTools → Sources y encuentra el archivo <code>api.js</code>. Lee el código cuidadosamente. Hay una contraseña escrita directamente en el código JavaScript.', hint: "Busca una variable que contenga la palabra 'password' o 'pass'.", terminal: false },
+    "09": { desc: 'Usa el inspector y busca un elemento con estilos <code>::before</code> o <code>::after</code>. La propiedad <code>content</code> de ese pseudo-elemento contiene la flag.', hint: "En el inspector, mira el panel Computed.", terminal: false },
+    "10": { desc: 'Abre DevTools → Console y escribe <code>FLAG_PARTS</code>. Verás un array con fragmentos. Únelos con <code>FLAG_PARTS.join("")</code>.', hint: "O mira el source de la página y busca el array FLAG_PARTS.", terminal: false },
+    "11": { desc: 'Decodifica este string Base64 en un decoder online (base64decode.org): <br><code>ZmxhZ3tkZWNvZGlmaWNhZG9fYjY0fQ==</code>', hint: "Base64 termina siempre con = o ==.", terminal: false },
+    "12": { desc: 'Decodifica este texto usando el Cifrado César con desplazamiento de 3: <br><code>iodj{yhql_ylgl_ylfl}</code>', hint: "Cada letra se desplaza 3 posiciones hacia atrás. 'i' → 'f'.", terminal: false },
+    "13": { desc: 'Convierte este string binario a texto ASCII: <br><code>01100110 01101100 01100001 01100111 01111011 01100010 01101001 01101110 01100001 01110010 01111001 01011111 01110100 01101111 01011111 01100001 01110011 01100011 01101001 01101001 01111101</code>', hint: "Usa rapidtables.com/convert/number/binary-to-ascii.html", terminal: false },
+    "14": { desc: 'Convierte este string hexadecimal a texto: <br><code>666c61677b6865785f6465636f6465645f6f6b7d</code>', hint: "Usa rapidtables.com/convert/number/hex-to-ascii.html", terminal: false },
+    "15": { desc: 'Decodifica este texto con cifrado Vigenère. La clave está en el archivo <code>/robots.txt</code> del sitio. <br>Texto: <code>mkff{gsccvcpc_qzmocsn}</code>', hint: "La clave es la ruta que aparece en robots.txt sin la barra diagonal.", terminal: false },
+    "16": { desc: 'Traduce este código Morse: <br><code>..-. .-.. .- --. { -- --- .-. ... . / -.. . -.-. --- -.. . -.. }</code>', hint: "Usa morsedecoder.com o una tabla Morse.", terminal: false },
+    "17": { desc: 'Abre la consola (F12) y escribe <code>decryptChallenge17()</code>. Analiza la función que aparece y ejecútala para obtener la flag.', hint: "La función aplica XOR. Puedes leerla en DevTools → Sources.", terminal: false },
+    "18": { desc: 'Navega a la URL: <code>[tu-sitio]/robots.txt</code>. En GitHub Pages sería: <code>https://[usuario].github.io/[repo]/robots.txt</code>.', hint: "robots.txt está en la raíz del repositorio.", terminal: false },
+    "19": { desc: 'Ve a <a href="https://web.archive.org" target="_blank">archive.org</a> y busca el dominio <code>ctf-ejemplo-2023.com</code>. Navega a una versión de febrero 2023.', hint: "Usa el calendario de Wayback Machine.", terminal: false },
+    "20": { desc: 'Busca en Instagram el perfil <code>@ctf_dummy_profile_2024</code>. La flag está en la bio.', hint: "No necesitas iniciar sesión para ver una bio.", terminal: false },
+    "21": { desc: 'Usa Google con este dork: <br><code>filetype:pdf site:github.com ctf-secret-document-2024</code>. Abre el PDF y busca la flag.', hint: "Google Dorks limitan la búsqueda a tipo de archivo y dominio.", terminal: false },
+    "22": { desc: 'Descarga la imagen <code>assets/foto_reto22.jpg</code>. Súbela a <a href="https://exifinfo.org" target="_blank">exifinfo.org</a> y lee las coordenadas GPS en los metadatos EXIF.', hint: "Los datos GPS en EXIF se expresan en grados, minutos y segundos.", terminal: false },
+    "23": { desc: 'Ve a <a href="https://mxtoolbox.com/TXTLookup.aspx" target="_blank">mxtoolbox.com</a> y busca los registros TXT del dominio <code>ctf-challenge.example.com</code>.', hint: "Los registros TXT del DNS pueden contener cualquier texto.", terminal: false },
+    "24": { desc: 'Abre el emulador de terminal y escribe <code>ls -la</code> para listar todos los archivos, incluyendo los ocultos (que empiezan con punto).', hint: "Los archivos ocultos en Linux empiezan con '.' — la opción -a los muestra.", terminal: true },
+    "25": { desc: 'Después de resolver el desafío 24, usa el comando <code>cat .secret_flag</code> en el terminal para leer el contenido del archivo oculto.', hint: "cat lee el contenido de un archivo.", terminal: true },
+    "26": { desc: 'En el terminal, escribe: <code>grep password /var/log/access.log</code> para buscar la cadena "password" en el archivo de logs.', hint: "grep filtra líneas que contienen el patrón especificado.", terminal: true },
+    "27": { desc: 'En el terminal, escribe: <code>nmap 10.0.0.5</code> para escanear los puertos del servidor simulado.', hint: "Un escaneo de puertos muestra qué servicios están corriendo en un host.", terminal: true },
+    "28": { desc: 'En el terminal, navega con: <code>cd admin_backup</code> y luego lee el archivo: <code>cat flag.txt</code>', hint: "cd = change directory. Usa ls para ver qué hay en cada carpeta.", terminal: true },
+    "29": { desc: 'En el terminal, escribe el comando: <code>whoami</code>. El nombre del usuario actual ES la flag.', hint: "whoami muestra el nombre del usuario actual.", terminal: true },
+    "30": { desc: 'Usando las credenciales del desafío 08 (usuario: <code>root</code>), escribe en el terminal: <code>ssh root@10.0.0.5</code>', hint: "Necesitas la contraseña del desafío 08. ¿La encontraste?", terminal: true },
 };
 
-// ── HIDDEN CHALLENGE ELEMENTS ──────────────────
-// Challenge 02: invisible flag
+// ── HIDDEN CHALLENGE ELEMENTS ────────────────────
 const invisibleFlag = document.createElement("span");
 invisibleFlag.style.display = "none";
 invisibleFlag.textContent = "flag{css_oculto}";
 invisibleFlag.id = "ch02_hidden";
 document.body.appendChild(invisibleFlag);
 
-// Challenge 03: disabled button
 const disabledBtn = document.createElement("button");
 disabledBtn.id = "btn03";
 disabledBtn.disabled = true;
 disabledBtn.setAttribute("data-flag", "flag{button_unlocked}");
 disabledBtn.textContent = "ACCESO RESTRINGIDO";
 disabledBtn.style.cssText = "display:none; margin-top:8px; border-color:var(--red); color:var(--red);";
-disabledBtn.onclick = () => alert("flag{button_unlocked}");
+disabledBtn.onclick = () => {
+    document.getElementById("modalFlagInput").value = "flag{button_unlocked}";
+};
 document.body.appendChild(disabledBtn);
 
-// Challenge 04: console function
 window.printFlag = function() {
     console.log("%cflag{console_is_your_friend}", "color:#00ff88; font-size:16px; font-weight:bold;");
     return "flag{console_is_your_friend}";
 };
 
-// Challenge 09: CSS ::before pseudo-element
 const ch09el = document.createElement("div");
 ch09el.id = "ch09_pseudo";
-ch09el.style.cssText = "position:absolute; left:-9999px;";
+ch09el.style.cssText = "position:absolute; left:-9999px; top:-9999px;";
 document.body.appendChild(ch09el);
 const style09 = document.createElement("style");
 style09.textContent = `#ch09_pseudo::before { content: "flag{pseudo_element_secret}"; }`;
 document.head.appendChild(style09);
 
-// Challenge 10: obfuscated array
 window.FLAG_PARTS = ["fl","ag","{d","eo","bf","us","ca","te","d_","js","}"];
 
-// Challenge 17: XOR decrypt function
 window.decryptChallenge17 = function() {
     const enc = [14,10,3,9,127,27,8,23,8,27,19,8,26,23,0,8,18,26,27,24,1];
     const key = 106;
@@ -191,38 +317,37 @@ window.decryptChallenge17 = function() {
     return result;
 };
 
-// Challenge 05: check cookie
 function checkAdminCookie() {
     if (document.cookie.includes("admin=true")) return "flag{admin_cookie_true}";
     return null;
 }
-
-// Challenge 06: check localStorage
 function checkPremium() {
     if (localStorage.getItem("premium") === "true") return "flag{localstorage_bypass}";
     return null;
 }
 
-// ── STATE ──────────────────────────────────────
+// ── STATE ────────────────────────────────────────
 let allChallenges = [];
 let solvedIds = [];
 let currentFilter = "all";
 let currentModalId = null;
 
-// ── INIT ───────────────────────────────────────
+// ── INIT ─────────────────────────────────────────
 async function init() {
-    const [challenges, solved, user, board] = await Promise.all([
+    const [challenges, solved, equipo, board, members] = await Promise.all([
         obtenerDesafios(),
-        obtenerResueltos(currentUser),
-        obtenerUsuario(currentUser),
-        obtenerLeaderboard()
+        obtenerResueltos(equipoId),
+        obtenerEquipo(equipoId),
+        obtenerLeaderboard(),
+        obtenerMiembrosEquipo(equipoId)
     ]);
 
     allChallenges = challenges;
     solvedIds = solved;
 
     // Stats
-    document.getElementById("statScore").textContent = user?.puntaje ?? 0;
+    const teamScore = equipo?.puntaje ?? 0;
+    document.getElementById("statTeamScore").textContent = teamScore.toLocaleString();
     document.getElementById("statSolved").textContent = solvedIds.length;
     document.getElementById("statRemain").textContent = 30 - solvedIds.length;
 
@@ -231,57 +356,95 @@ async function init() {
     document.getElementById("progressBar").style.width = pct + "%";
 
     // Rank
-    const rank = board.findIndex(u => u.username === currentUser) + 1;
+    const rank = board.findIndex(t => t.id === equipoId) + 1;
     document.getElementById("statRank").textContent = rank > 0 ? `#${rank}` : "—";
+
+    // Members
+    const mr = document.getElementById("membersRow");
+    mr.innerHTML = members.map(m =>
+        `<span class="member-pill ${m.username === currentUser ? 'me' : ''}">
+            ${m.username === currentUser ? '▶ ' : ''}${esc(m.username)} · ${m.puntaje}pts
+        </span>`
+    ).join("") || `<span class="member-pill me">▶ ${esc(currentUser)}</span>`;
 
     renderChallenges(currentFilter);
 }
 
-// ── RENDER ─────────────────────────────────────
+// ── RENDER CHALLENGES ─────────────────────────────
+const CAT_META = {
+    Web:      { icon: "🌐", color: "var(--cyan)" },
+    Crypto:   { icon: "🔐", color: "var(--yellow)" },
+    OSINT:    { icon: "🔍", color: "var(--purple)" },
+    Terminal: { icon: "💻", color: "var(--green)" },
+};
+
 function renderChallenges(cat) {
     const list = document.getElementById("challengeList");
-    const filtered = cat === "all" ? allChallenges : allChallenges.filter(c => c.categoria === cat);
+    const filtered = cat === "all"
+        ? allChallenges
+        : allChallenges.filter(c => c.categoria === cat);
 
     if (filtered.length === 0) {
-        list.innerHTML = `<div style="color:var(--text-dim); padding:12px 0; font-size:12px;">No hay desafíos en esta categoría.</div>`;
+        list.innerHTML = `<div style="color:var(--text-dim); padding:16px 0; font-size:12px;">No hay desafíos en esta categoría.</div>`;
         return;
     }
 
-    let html = `<table>
-        <thead><tr>
-            <th style="width:48px">ID</th>
-            <th>Nombre</th>
-            <th style="width:90px">Categoría</th>
-            <th style="width:70px">Pts</th>
-            <th style="width:80px">Estado</th>
-        </tr></thead><tbody>`;
+    if (cat !== "all") {
+        list.innerHTML = filtered.map(c => challengeRowHtml(c)).join("");
+        return;
+    }
 
-    filtered.forEach(c => {
-        const solved = solvedIds.includes(c.id);
-        const catClass = { Web:"badge-web", Crypto:"badge-crypto", OSINT:"badge-osint", Terminal:"badge-terminal" }[c.categoria] || "";
-
-        // Special extras
-        let extra = "";
-        if (c.id === "24" || c.id === "25" || c.id === "26" || c.id === "27" || c.id === "28" || c.id === "29" || c.id === "30") {
-            extra = ` <a href="terminal.html" style="color:var(--yellow); font-size:10px; text-decoration:none;">→ TERMINAL</a>`;
-        }
-
-        html += `<tr style="${solved ? 'opacity:.55;' : ''}" onclick="openModal('${c.id}')" style="cursor:pointer;">
-            <td style="font-family:var(--font-hud); color:var(--text-dim);">${c.id}</td>
-            <td style="cursor:pointer; color:${solved ? 'var(--text-dim)' : 'var(--text)'};">
-                ${solved ? '✓ ' : ''}<span style="cursor:pointer;">${c.nombre}</span>${extra}
-            </td>
-            <td><span class="badge ${catClass}">${c.categoria.toUpperCase()}</span></td>
-            <td style="font-family:var(--font-hud); color:var(--yellow);">${c.puntos}</td>
-            <td>${solved
-                ? '<span class="badge badge-solved">RESUELTO</span>'
-                : '<span class="badge badge-pending">PENDIENTE</span>'
-            }</td>
-        </tr>`;
+    // Group by category
+    const cats = ["Web", "Crypto", "OSINT", "Terminal"];
+    let html = "";
+    cats.forEach(catName => {
+        const chs = filtered.filter(c => c.categoria === catName);
+        if (chs.length === 0) return;
+        const cm = CAT_META[catName];
+        const solved = chs.filter(c => solvedIds.includes(c.id)).length;
+        html += `
+        <div class="cat-section">
+            <div class="cat-header" onclick="toggleCat('${catName}')">
+                <span class="cat-header-icon">${cm.icon}</span>
+                <span class="cat-header-title" style="color:${cm.color};">${catName}</span>
+                <span class="cat-header-stats">${solved}/${chs.length} resueltos</span>
+                <span class="cat-arrow open" id="arrow-${catName}">▶</span>
+            </div>
+            <div id="cat-${catName}" style="padding: 0 4px;">
+                ${chs.map(c => challengeRowHtml(c)).join("")}
+            </div>
+        </div>`;
     });
-
-    html += "</tbody></table>";
     list.innerHTML = html;
+}
+
+function challengeRowHtml(c) {
+    const solved = solvedIds.includes(c.id);
+    const catMeta = CAT_META[c.categoria] || {};
+    const badgeClass = { Web:"badge-web", Crypto:"badge-crypto", OSINT:"badge-osint", Terminal:"badge-terminal" }[c.categoria] || "";
+
+    return `<div class="challenge-row ${solved ? 'solved' : ''}" onclick="${solved ? '' : `openModal('${c.id}')`}">
+        <div class="challenge-id">#${c.id}</div>
+        <div>
+            <div class="challenge-name" style="${solved ? 'color:var(--text-dim); text-decoration:line-through;' : ''}">${esc(c.nombre)}</div>
+        </div>
+        <span class="badge ${badgeClass}">${c.categoria}</span>
+        <span class="pts-tag">+${c.puntos}</span>
+        <div>
+            ${solved
+                ? `<span class="solve-check done">✓</span>`
+                : `<span class="solve-check"></span>`
+            }
+        </div>
+    </div>`;
+}
+
+function toggleCat(catName) {
+    const el = document.getElementById(`cat-${catName}`);
+    const arrow = document.getElementById(`arrow-${catName}`);
+    const isOpen = el.style.display !== "none";
+    el.style.display = isOpen ? "none" : "block";
+    arrow.classList.toggle("open", !isOpen);
 }
 
 function filterCat(cat, btn) {
@@ -291,29 +454,46 @@ function filterCat(cat, btn) {
     renderChallenges(cat);
 }
 
-// ── MODAL ──────────────────────────────────────
+// ── MODAL ─────────────────────────────────────────
 function openModal(id) {
+    if (!id) return;
     currentModalId = id;
     const ch = allChallenges.find(c => c.id === id);
     const m = META[id];
     if (!ch || !m) return;
 
-    document.getElementById("modalTitle").textContent = `[${id}] ${ch.nombre} — ${ch.puntos} pts`;
+    const solved = solvedIds.includes(id);
+    const catClass = { Web:"badge-web", Crypto:"badge-crypto", OSINT:"badge-osint", Terminal:"badge-terminal" }[ch.categoria] || "";
+
+    document.getElementById("modalTitle").innerHTML =
+        `[${id}] ${esc(ch.nombre)} &nbsp;<span class="badge ${catClass}">${ch.categoria}</span>`;
+    document.getElementById("modalSubtitle").textContent = `${ch.puntos} puntos`;
     document.getElementById("modalBody").innerHTML = m.desc || "Sin descripción.";
     document.getElementById("hintBox").className = "hint-box";
-    document.getElementById("hintBox").innerHTML = "";
+    document.getElementById("hintBox").textContent = "";
+    document.getElementById("modalFlagInput").value = "";
+    document.getElementById("modalFlagResult").style.display = "none";
 
-    // Show special element if any
+    // Terminal link
+    document.getElementById("terminalLink").style.display = m.terminal ? "inline" : "none";
+
+    // Solved state
+    document.getElementById("solvedBanner").style.display = solved ? "flex" : "none";
+    document.getElementById("modalFlagRow").style.display = solved ? "none" : "flex";
+    document.getElementById("modalSubmitBtn").disabled = solved;
+
+    // Special element
     if (m.special) {
         const el = document.getElementById(m.special);
         if (el) {
             el.style.display = "block";
             el.style.position = "static";
+            document.getElementById("modalBody").appendChild(el);
         }
-        document.getElementById("modalBody").appendChild(el || document.createElement("span"));
     }
 
     document.getElementById("challengeModal").classList.add("open");
+    if (!solved) setTimeout(() => document.getElementById("modalFlagInput").focus(), 100);
 }
 
 function closeModal() {
@@ -321,17 +501,11 @@ function closeModal() {
     currentModalId = null;
 }
 
-function fillId() {
-    document.getElementById("desafioId").value = currentModalId;
-    document.getElementById("flagInput").focus();
-    closeModal();
-}
-
 function showHint() {
     const m = META[currentModalId];
     if (!m) return;
     const hintBox = document.getElementById("hintBox");
-    hintBox.innerHTML = "💡 " + (m.hint || "Sin pista disponible.");
+    hintBox.textContent = m.hint || "Sin pista disponible.";
     hintBox.classList.add("visible");
 }
 
@@ -339,67 +513,110 @@ document.getElementById("challengeModal").addEventListener("click", e => {
     if (e.target === e.currentTarget) closeModal();
 });
 
-// ── FLAG SUBMIT ────────────────────────────────
+document.getElementById("modalFlagInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") submitFlagModal();
+});
+
+// ── FLAG SUBMIT ───────────────────────────────────
+async function submitFlagModal() {
+    const flag = document.getElementById("modalFlagInput").value.trim();
+    if (!flag || !currentModalId) return;
+    await doSubmit(currentModalId, flag, true);
+}
+
 async function submitFlag() {
     const dId  = document.getElementById("desafioId").value.trim();
     const flag = document.getElementById("flagInput").value.trim();
-    const resultEl = document.getElementById("flagResult");
+    if (!dId || !flag) { showToast("Rellena el ID y la flag.", "inf"); return; }
+    await doSubmit(dId, flag, false);
+}
 
-    if (!dId || !flag) {
-        showResult("Rellena el ID del desafío y la flag.", "inf");
-        return;
-    }
-
-    showResult("Validando …", "inf");
-
+async function doSubmit(dId, flag, isModal) {
     // Client-side special checks
     if (dId === "05") {
         const f = checkAdminCookie();
-        if (!f || f !== flag) { showResult("Flag incorrecta. Recuerda cambiar la cookie admin=true y recargar.", "err"); return; }
+        if (!f || f !== flag) { showResult("Flag incorrecta. Recuerda cambiar la cookie admin=true.", "err", isModal); return; }
     }
     if (dId === "06") {
         const f = checkPremium();
-        if (!f || f !== flag) { showResult("Flag incorrecta. ¿Cambiaste localStorage 'premium' a 'true'?", "err"); return; }
+        if (!f || f !== flag) { showResult("Flag incorrecta. ¿Cambiaste localStorage 'premium' a 'true'?", "err", isModal); return; }
     }
 
-    const resp = await validarFlag(currentUser, dId, flag);
+    showResult("Validando …", "inf", isModal);
+    document.getElementById("submitBtn").disabled = true;
+    if (isModal) document.getElementById("modalSubmitBtn").disabled = true;
+
+    const resp = await validarFlag(currentUser, equipoId, dId, flag);
+
+    document.getElementById("submitBtn").disabled = false;
 
     if (resp.exitoso) {
-        showResult(`✓ ACCESO CONCEDIDO — ${resp.mensaje}`, "ok");
-        document.getElementById("flagInput").value = "";
-        document.getElementById("desafioId").value = "";
+        showResult(`✓ ${resp.mensaje}`, "ok", isModal);
         if (!solvedIds.includes(dId)) {
             solvedIds.push(dId);
-            // Refresh stats
-            const solvedCount = solvedIds.length;
-            document.getElementById("statSolved").textContent = solvedCount;
-            document.getElementById("statRemain").textContent = 30 - solvedCount;
-            const pct = Math.round((solvedCount / 30) * 100);
-            document.getElementById("progressPct").textContent = pct + "%";
-            document.getElementById("progressBar").style.width = pct + "%";
-            if (resp.puntos) {
-                const prev = parseInt(document.getElementById("statScore").textContent) || 0;
-                document.getElementById("statScore").textContent = prev + resp.puntos;
-            }
+            updateStats(resp.puntos || 0);
+            renderChallenges(currentFilter);
+            // Lock the modal
+            document.getElementById("solvedBanner").style.display = "flex";
+            document.getElementById("modalFlagRow").style.display = "none";
         }
-        renderChallenges(currentFilter);
+        document.getElementById("flagInput").value = "";
+        document.getElementById("desafioId").value = "";
+        showToast(`🎉 +${resp.puntos} pts — ${dId}`, "ok");
     } else {
-        showResult(`✗ ACCESO DENEGADO — ${resp.mensaje}`, "err");
+        showResult(`✗ ${resp.mensaje}`, "err", isModal);
+        if (isModal) document.getElementById("modalSubmitBtn").disabled = false;
     }
 }
 
-function showResult(text, type) {
-    const el = document.getElementById("flagResult");
-    el.style.display = "block";
-    el.className = `alert alert-${type}`;
-    el.textContent = `> ${text}`;
+function updateStats(pts) {
+    const solved = solvedIds.length;
+    document.getElementById("statSolved").textContent = solved;
+    document.getElementById("statRemain").textContent = 30 - solved;
+    const pct = Math.round((solved / 30) * 100);
+    document.getElementById("progressPct").textContent = pct + "%";
+    document.getElementById("progressBar").style.width = pct + "%";
+    if (pts > 0) {
+        const prev = parseInt(document.getElementById("statTeamScore").textContent.replace(/,/g, "")) || 0;
+        document.getElementById("statTeamScore").textContent = (prev + pts).toLocaleString();
+    }
+}
+
+function showResult(text, type, isModal) {
+    if (isModal) {
+        const el = document.getElementById("modalFlagResult");
+        el.style.display = "block";
+        el.className = `alert alert-${type}`;
+        el.textContent = `> ${text}`;
+    } else {
+        showToast(text, type);
+    }
+}
+
+let toastTimer;
+function showToast(text, type) {
+    clearTimeout(toastTimer);
+    let toast = document.getElementById("resultToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "resultToast";
+        document.body.appendChild(toast);
+    }
+    toast.className = `result-toast toast-${type}`;
+    toast.textContent = `> ${text}`;
+    toast.style.display = "block";
+    toastTimer = setTimeout(() => { toast.style.display = "none"; }, 4000);
 }
 
 document.getElementById("flagInput").addEventListener("keydown", e => {
     if (e.key === "Enter") submitFlag();
 });
 
-// ── RUN ────────────────────────────────────────
+function esc(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ── RUN ───────────────────────────────────────────
 init();
 </script>
 </body>
