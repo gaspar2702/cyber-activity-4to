@@ -1,1 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberCTF - Panel de Control</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="api.js"></script>
+</head>
+<body>
 
+    <div class="nav-links">
+        <a href="dashboard.html">[ DASHBOARD ]</a>
+        <a href="leaderboard.html">[ LEADERBOARD ]</a>
+        <a href="#" onclick="logout()">[ SALIR ]</a>
+    </div>
+
+    <div class="container">
+        <h2>Bienvenido, <span id="displayUser">Operador</span></h2>
+        
+        <div style="border: 1px dashed #00ff00; padding: 15px; margin-bottom: 20px;">
+            <h3>Enviar Flag</h3>
+            <input type="text" id="desafioId" placeholder="ID del Desafío (ej. 01, 11, 24)" style="width: 100px; display: inline-block;">
+            <input type="text" id="flagInput" placeholder="flag{...}" style="width: calc(100% - 130px); display: inline-block;">
+            <button onclick="submitFlag()">EJECUTAR</button>
+            <p id="flagResult"></p>
+        </div>
+
+        <h3>Lista de Desafíos Activos</h3>
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Categoría</th>
+                <th>Nombre</th>
+                <th>Puntos</th>
+            </tr>
+            <tr><td>01</td><td>Web</td><td>Inspect Element (Busca en el código fuente de esta página)</td><td>100</td></tr>
+            <tr><td>02</td><td>Web</td><td>The Invisible <span style="display:none;">flag{css_oculto}</span></td><td>100</td></tr>
+            <tr><td>11</td><td>Crypto</td><td>Base64: ZmxhZ3tkZWNvZGlmaWNhZG9fYjY0fQ==</td><td>150</td></tr>
+            <tr><td>18</td><td>OSINT</td><td>The Robot (Revisa el archivo robots.txt)</td><td>200</td></tr>
+            <tr><td>24</td><td>Terminal</td><td><a href="terminal.html" style="color: yellow;">[Abrir Emulador de Terminal]</a></td><td>250</td></tr>
+        </table>
+        
+        </div>
+
+    <script>
+        const currentUser = localStorage.getItem("ctf_username");
+        if (!currentUser) window.location.href = "index.html";
+        
+        document.getElementById("displayUser").innerText = currentUser;
+
+        async function submitFlag() {
+            const dId = document.getElementById("desafioId").value.trim();
+            const flag = document.getElementById("flagInput").value.trim();
+            const resultMsg = document.getElementById("flagResult");
+
+            if (!dId || !flag) {
+                resultMsg.innerText = "Rellena todos los campos.";
+                return;
+            }
+
+            resultMsg.innerText = "Validando...";
+            const respuesta = await validarFlag(currentUser, dId, flag); // Llama a api.js
+            
+            if (respuesta.exitoso) {
+                resultMsg.style.color = "yellow";
+                resultMsg.innerText = ">>> ACCESO CONCEDIDO: " + respuesta.mensaje + " Puntos añadidos.";
+                document.getElementById("flagInput").value = "";
+            } else {
+                resultMsg.style.color = "red";
+                resultMsg.innerText = ">>> ACCESO DENEGADO: " + respuesta.mensaje;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("ctf_username");
+            window.location.href = "index.html";
+        }
+    </script>
+</body>
+</html>
