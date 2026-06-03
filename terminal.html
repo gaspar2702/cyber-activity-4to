@@ -3,76 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberCTF // TERMINAL SIMULADO</title>
+    <title>CyberCTF // TERMINAL</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .quick-cmds { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        .qbtn { padding: 5px 14px; font-size: 10px; letter-spacing: 1px; font-family: var(--font-mono); }
+
+        .challenge-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .ch-chip {
+            background: var(--bg4);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius);
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: .15s;
+            font-size: 11px;
+        }
+        .ch-chip:hover { border-color: var(--green-dim); background: var(--green-faint); color: var(--green); }
+        .ch-chip.solved { opacity: 0.5; cursor: default; }
+        .ch-chip.solved:hover { border-color: var(--border2); background: var(--bg4); color: var(--text); }
+        .ch-chip .ch-num { color: var(--text-dim); font-size: 10px; display: block; margin-bottom: 3px; }
+        .ch-chip .ch-name { font-weight: 600; }
+    </style>
 </head>
 <body>
 
 <div class="nav">
     <div class="nav-brand">CYBERCTF</div>
     <div class="nav-links">
-        <a href="dashboard.html">DASHBOARD</a>
-        <a href="leaderboard.html">RANKING</a>
-        <a href="terminal.html" class="active">TERMINAL</a>
-        <a href="#" onclick="logout()">SALIR</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="leaderboard.html">Ranking</a>
+        <a href="terminal.html" class="active">Terminal</a>
+        <a href="#" onclick="logout()">Salir</a>
     </div>
-    <div class="nav-user">OP: <span id="navUser">—</span></div>
+    <div class="nav-user">
+        <span id="navUser">—</span>
+        <span class="team-badge" id="navTeam">—</span>
+    </div>
 </div>
 
 <div class="page-wrap">
 
-    <div class="panel fade-up" style="margin-bottom:12px;">
-        <div class="panel-title">// INFO — DESAFÍOS DE TERMINAL (24–30)</div>
-        <div style="font-size:12px; color:var(--text-dim); line-height:1.8;">
-            Este emulador simula un sistema Linux. Usa los comandos reales para avanzar.
-            Los flags encontrados aquí se ingresan igual en el Dashboard.
+    <div style="display:grid; grid-template-columns: 1fr 260px; gap:16px; align-items: start;" class="fade-up">
+        <!-- Main terminal -->
+        <div>
+            <div class="terminal-box">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dot" style="background:#ff5f57;"></div>
+                    <div class="terminal-dot" style="background:#febc2e;"></div>
+                    <div class="terminal-dot" style="background:#28c840;"></div>
+                    <div class="terminal-titlebar-text">ctf-server — bash — 80×24</div>
+                    <div style="margin-left:auto; font-size:10px; color:var(--green-dim); letter-spacing:1px;">● ACTIVO</div>
+                </div>
+                <div class="terminal-output" id="output"></div>
+                <div class="terminal-input-row">
+                    <span class="terminal-prompt" id="promptLabel">guest@ctf-server:~$</span>
+                    <input type="text" class="terminal-input" id="termInput"
+                           autofocus autocomplete="off" autocorrect="off" autocapitalize="off"
+                           spellcheck="false" placeholder="escribe un comando…">
+                </div>
+            </div>
+
+            <div class="quick-cmds">
+                <button class="qbtn" onclick="quickCmd('help')">help</button>
+                <button class="qbtn" onclick="quickCmd('ls -la')">ls -la</button>
+                <button class="qbtn" onclick="quickCmd('cat .secret_flag')">cat .secret_flag</button>
+                <button class="qbtn" onclick="quickCmd('whoami')">whoami</button>
+                <button class="qbtn" onclick="quickCmd('nmap 10.0.0.5')">nmap 10.0.0.5</button>
+                <button class="qbtn btn-danger" onclick="clearTerm()">✕ Limpiar</button>
+            </div>
         </div>
-    </div>
 
-    <div class="terminal-box fade-up">
-        <!-- Titlebar -->
-        <div class="terminal-titlebar">
-            <div class="terminal-dot" style="background:#ff5f57;"></div>
-            <div class="terminal-dot" style="background:#febc2e;"></div>
-            <div class="terminal-dot" style="background:#28c840;"></div>
-            <span style="font-size:11px; color:var(--text-dim); margin-left:8px; font-family:var(--font-mono);">
-                ctf-server — bash — 80×24
-            </span>
+        <!-- Sidebar: terminal challenges -->
+        <div>
+            <div class="panel" style="padding:18px;">
+                <div class="panel-title">Desafíos Terminal</div>
+                <div style="font-size:11px; color:var(--text-dim); margin-bottom:14px; line-height:1.7;">
+                    Usa comandos reales de Linux para descubrir las flags. Las flags se ingresan en el dashboard como siempre.
+                </div>
+                <div class="challenge-chips" id="terminalChallenges">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="panel" style="padding:18px; margin-top:0;">
+                <div class="panel-title">Referencia</div>
+                <div style="font-size:11px; color:var(--text-dim); line-height:2;">
+                    <code style="color:var(--cyan);">ls -la</code> listar archivos<br>
+                    <code style="color:var(--cyan);">cat &lt;file&gt;</code> leer archivo<br>
+                    <code style="color:var(--cyan);">cd &lt;dir&gt;</code> cambiar dir<br>
+                    <code style="color:var(--cyan);">cd ..</code> subir nivel<br>
+                    <code style="color:var(--cyan);">grep &lt;pat&gt; &lt;file&gt;</code> buscar<br>
+                    <code style="color:var(--cyan);">nmap &lt;host&gt;</code> escanear<br>
+                    <code style="color:var(--cyan);">ssh user@host</code> conectar<br>
+                    <code style="color:var(--cyan);">whoami</code> usuario actual
+                </div>
+            </div>
         </div>
-
-        <!-- Output area -->
-        <div class="terminal-output" id="output"></div>
-
-        <!-- Input row -->
-        <div class="terminal-input-row">
-            <span class="terminal-prompt" id="promptLabel">guest@ctf-server:~$</span>
-            <input type="text" class="terminal-input" id="termInput"
-                   autofocus autocomplete="off" autocorrect="off" spellcheck="false"
-                   placeholder="escribe un comando…">
-        </div>
-    </div>
-
-    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button onclick="quickCmd('ls -la')"    style="padding:5px 12px; font-size:10px;">ls -la</button>
-        <button onclick="quickCmd('cat .secret_flag')" style="padding:5px 12px; font-size:10px;">cat .secret_flag</button>
-        <button onclick="quickCmd('whoami')"    style="padding:5px 12px; font-size:10px;">whoami</button>
-        <button onclick="quickCmd('nmap 10.0.0.5')" style="padding:5px 12px; font-size:10px;">nmap 10.0.0.5</button>
-        <button onclick="clearTerm()"           style="padding:5px 12px; font-size:10px; border-color:var(--red); color:var(--red);">LIMPIAR</button>
     </div>
 
 </div>
 
+<script src="api.js"></script>
 <script>
-const currentUser = localStorage.getItem("ctf_username") || "guest";
+const currentUser  = localStorage.getItem("ctf_username") || "guest";
+const equipoId     = localStorage.getItem("ctf_equipo_id") || null;
+const equipoNombre = localStorage.getItem("ctf_equipo_nombre") || "—";
+
 document.getElementById("navUser").textContent = currentUser;
+document.getElementById("navTeam").textContent = equipoNombre;
 document.getElementById("promptLabel").textContent = `${currentUser}@ctf-server:~$`;
 
 function logout() {
     localStorage.removeItem("ctf_username");
+    localStorage.removeItem("ctf_equipo_id");
+    localStorage.removeItem("ctf_equipo_nombre");
     window.location.href = "index.html";
 }
 
-// ── FILESYSTEM SIMULATION ────────────────────────────────
+// ── Load terminal challenge chips ─────────────────
+async function loadTerminalChallenges() {
+    const chips = document.getElementById("terminalChallenges");
+    let solved = [];
+    if (equipoId) {
+        try { solved = await obtenerResueltos(equipoId); } catch {}
+    }
+
+    const termChallenges = [
+        { id: "24", name: "ls -la", pts: 250 },
+        { id: "25", name: "cat",    pts: 250 },
+        { id: "26", name: "grep",   pts: 250 },
+        { id: "27", name: "nmap",   pts: 250 },
+        { id: "28", name: "Directory", pts: 300 },
+        { id: "29", name: "whoami", pts: 300 },
+        { id: "30", name: "ssh",    pts: 350 },
+    ];
+
+    chips.innerHTML = termChallenges.map(c => {
+        const done = solved.includes(c.id);
+        return `<div class="ch-chip ${done ? 'solved' : ''}">
+            <span class="ch-num">#${c.id} · ${c.pts}pts</span>
+            <span class="ch-name">${done ? '✓ ' : ''}${c.name}</span>
+        </div>`;
+    }).join("");
+}
+
+loadTerminalChallenges();
+
+// ── FILESYSTEM ────────────────────────────────────
 const FS = {
     "~": {
         type: "dir",
@@ -87,7 +170,7 @@ const FS = {
                     "config.bak":  { type: "file", content: "# Config backup\nhost=10.0.0.5\nport=22\nuser=root\npass=hardcoded_p4ssw0rd" },
                 }
             },
-            "logs":           {
+            "logs": {
                 type: "dir",
                 children: {
                     "access.log": { type: "file", content: generateLogs() },
@@ -103,35 +186,30 @@ function generateLogs() {
     const codes = ["200","200","200","404","403","500"];
     let out = "";
     for (let i = 0; i < 200; i++) {
-        const ip = ips[Math.floor(Math.random()*ips.length)];
-        const page = pages[Math.floor(Math.random()*pages.length)];
-        const code = codes[Math.floor(Math.random()*codes.length)];
-        const d = new Date(Date.now() - Math.random()*86400000*7);
-        out += `${d.toISOString()} ${ip} GET ${page} HTTP/1.1 ${code} -\n`;
+        const ip = ips[i % ips.length];
+        const page = pages[i % pages.length];
+        const code = codes[i % codes.length];
+        out += `2024-0${(i%9)+1}-15T${String(i%24).padStart(2,'0')}:${String(i%60).padStart(2,'0')}:00Z ${ip} GET ${page} HTTP/1.1 ${code} -\n`;
     }
-    // Inject the password line
     out += `2024-03-15T14:22:33.000Z 10.0.0.5 POST /login HTTP/1.1 200 - username=root&password=flag{grep_found_password}\n`;
-    for (let i = 0; i < 100; i++) {
-        const ip = ips[Math.floor(Math.random()*ips.length)];
-        const page = pages[Math.floor(Math.random()*pages.length)];
-        const code = codes[Math.floor(Math.random()*codes.length)];
-        const d = new Date(Date.now() - Math.random()*86400000*3);
-        out += `${d.toISOString()} ${ip} GET ${page} HTTP/1.1 ${code} -\n`;
+    for (let i = 0; i < 80; i++) {
+        const ip = ips[i % ips.length];
+        const page = pages[i % pages.length];
+        out += `2024-04-01T${String(i%24).padStart(2,'0')}:00:00Z ${ip} GET ${page} HTTP/1.1 200 -\n`;
     }
     return out;
 }
 
-// ── TERMINAL STATE ───────────────────────────────────────
+// ── STATE ──────────────────────────────────────────
 let cwd = "~";
 let cwdPath = ["~"];
-let loggedInAs = currentUser;
 let sshConnected = false;
 let history = [];
 let histIdx = -1;
 
-function prompt() {
+function getPrompt() {
     const host = sshConnected ? "10.0.0.5" : "ctf-server";
-    const user = sshConnected ? "root" : loggedInAs;
+    const user = sshConnected ? "root" : currentUser;
     const p = cwdPath.length === 1 ? "~" : cwdPath[cwdPath.length-1];
     return `${user}@${host}:${p}$`;
 }
@@ -145,75 +223,69 @@ function getNode(pathArr) {
     return node;
 }
 
-// ── BOOT MESSAGE ────────────────────────────────────────
-const BOOT = `Linux ctf-server 5.15.0-ctf #1 SMP Mon Jan 01 00:00:00 UTC 2024 x86_64
+// ── BOOT ──────────────────────────────────────────
+const BOOT = `Linux ctf-server 5.15.0-ctf #1 SMP x86_64
 
-  ██████╗ ████████╗███████╗     ██████╗████████╗███████╗
-  ██╔════╝╚══██╔══╝██╔════╝    ██╔════╝╚══██╔══╝██╔════╝
-  ██║        ██║   █████╗      ██║        ██║   █████╗  
-  ██║        ██║   ██╔══╝      ██║        ██║   ██╔══╝  
-  ╚██████╗   ██║   ██║         ╚██████╗   ██║   ██║     
-   ╚═════╝   ╚═╝   ╚═╝          ╚═════╝   ╚═╝   ╚═╝     
+  ██████╗████████╗███████╗
+ ██╔════╝╚══██╔══╝██╔════╝
+ ██║        ██║   █████╗
+ ██║        ██║   ██╔══╝
+ ╚██████╗   ██║   ██║
+  ╚═════╝   ╚═╝   ╚═╝   SERVIDOR DE ENTRENAMIENTO
 
-  SERVIDOR DE ENTRENAMIENTO — ACCESO AUTORIZADO SOLAMENTE
-  Tipo 'help' para ver comandos disponibles.
+ Escribe 'help' para ver comandos disponibles.
 `;
 
-// ── COMMANDS ─────────────────────────────────────────────
+// ── COMMANDS ──────────────────────────────────────
 const COMMANDS = {
 
     help: () => `Comandos disponibles:
-  ls [-la]            Listar archivos del directorio actual
-  cd <dir>            Cambiar directorio (cd .. para subir)
-  cat <archivo>       Leer contenido de un archivo
-  pwd                 Mostrar directorio actual
-  whoami              Mostrar usuario actual
-  grep <pat> <arch>   Buscar patrón en archivo
-  nmap <host>         Escanear puertos de un host
-  ssh <user>@<host>   Conectar por SSH
-  clear               Limpiar pantalla
-  help                Mostrar esta ayuda`,
+  ls [-la]          listar archivos (con -la incluye ocultos)
+  cd <dir>          cambiar directorio
+  cat <file>        leer contenido de un archivo
+  pwd               mostrar directorio actual
+  whoami            mostrar usuario actual
+  grep <pat> <file> buscar patrón en archivo
+  nmap <host>       escanear puertos de un host
+  ssh <user>@<host> conectar por SSH
+  clear             limpiar pantalla
+  help              mostrar esta ayuda`,
 
     clear: () => { clearTerm(false); return ""; },
 
     pwd: () => "/" + cwdPath.join("/").replace("~/", "home/ctf/").replace("~", "home/ctf"),
 
-    whoami: () => {
-        if (sshConnected) return "flag{current_user_root}";
-        return loggedInAs;
-    },
+    whoami: () => sshConnected ? "flag{current_user_root}" : currentUser,
 
     ls: (args) => {
         const node = getNode(cwdPath);
         if (!node || node.type !== "dir") return "ls: no es un directorio";
-        const showHidden = args.includes("-a") || args.includes("-la") || args.includes("-l");
+        const showHidden = args.some(a => a.includes("a"));
+        const longFormat = args.some(a => a.includes("l"));
         const entries = Object.entries(node.children || {});
         const visible = showHidden ? entries : entries.filter(([n]) => !n.startsWith("."));
 
-        if (args.includes("-l") || args.includes("-la")) {
-            let out = "total " + visible.length * 4 + "\n";
+        if (longFormat) {
+            let out = `total ${visible.length * 4}\n`;
             visible.forEach(([name, n]) => {
                 const isDir = n.type === "dir";
                 const perm = isDir ? "drwxr-xr-x" : (name.startsWith(".") ? "-rw-------" : "-rw-r--r--");
-                const size = isDir ? "4096" : String((n.content || "").length).padStart(6);
-                out += `${perm} 1 ${loggedInAs} ${loggedInAs} ${size} Jan 01 00:00 ${isDir ? "\x1b[34m" : ""}${name}${isDir ? "/" : ""}\n`;
+                const size = isDir ? "  4096" : String((n.content || "").length).padStart(6);
+                const color = isDir ? "\x1b[34m" : (name.startsWith(".") ? "\x1b[90m" : "");
+                out += `${perm} 1 ${currentUser} ${currentUser} ${size} Jan 01 00:00 ${name}${isDir ? "/" : ""}\n`;
             });
             return out.trim();
         }
-
         return visible.map(([n,v]) => v.type === "dir" ? n + "/" : n).join("  ");
     },
 
     cd: (args) => {
         const target = args[0];
         if (!target || target === "~") { cwdPath = ["~"]; return ""; }
-        if (target === "..") {
-            if (cwdPath.length > 1) cwdPath.pop();
-            return "";
-        }
+        if (target === "..") { if (cwdPath.length > 1) cwdPath.pop(); return ""; }
         const node = getNode(cwdPath);
-        if (!node.children || !node.children[target]) return `cd: ${target}: No existe el directorio`;
-        if (node.children[target].type !== "dir") return `cd: ${target}: No es un directorio`;
+        if (!node?.children?.[target]) return `bash: cd: ${target}: No existe el archivo o directorio`;
+        if (node.children[target].type !== "dir") return `bash: cd: ${target}: No es un directorio`;
         cwdPath.push(target);
         return "";
     },
@@ -221,7 +293,7 @@ const COMMANDS = {
     cat: (args) => {
         if (!args[0]) return "cat: faltan argumentos";
         const node = getNode(cwdPath);
-        if (!node || !node.children) return `cat: ${args[0]}: No existe el archivo`;
+        if (!node?.children) return `cat: ${args[0]}: No existe el archivo`;
         const file = node.children[args[0]];
         if (!file) return `cat: ${args[0]}: No existe el archivo o directorio`;
         if (file.type === "dir") return `cat: ${args[0]}: Es un directorio`;
@@ -232,7 +304,6 @@ const COMMANDS = {
         if (args.length < 2) return "Uso: grep <patrón> <archivo>";
         const [pattern, filename] = args;
         const node = getNode(cwdPath);
-        // Support paths like /var/log/access.log → use logs/access.log
         let file = node?.children?.[filename];
         if (!file && filename.includes("access.log")) {
             file = FS["~"].children["logs"]?.children?.["access.log"];
@@ -260,9 +331,7 @@ PORT     STATE SERVICE VERSION
 
 Nmap done: 1 IP address (1 host up) scanned in 2.43 seconds`;
         }
-        return `Starting Nmap 7.94 ( https://nmap.org )
-Note: Host seems down. If it is really up, but blocking ICMP probes, try -Pn
-Nmap done: 1 IP address (0 hosts up)`;
+        return `Starting Nmap 7.94\nNote: Host seems down. Try -Pn\nNmap done: 0 hosts up`;
     },
 
     ssh: (args) => {
@@ -270,47 +339,13 @@ Nmap done: 1 IP address (0 hosts up)`;
         const parts = args[0].split("@");
         if (parts.length !== 2) return "Formato incorrecto. Usa: ssh usuario@host";
         const [user, host] = parts;
-
         if (host !== "10.0.0.5") return `ssh: connect to host ${host} port 22: Connection refused`;
         if (user !== "root") return `${user}@${host}: Permission denied (publickey,password).`;
-
-        // Prompt for password (simulate)
         return `__SSH_AUTH__${host}`;
     }
 };
 
-function runCommand(input) {
-    const trimmed = input.trim();
-    if (!trimmed) return "";
-
-    const parts = trimmed.split(/\s+/);
-    const cmd = parts[0].toLowerCase();
-    const args = parts.slice(1);
-
-    if (COMMANDS[cmd]) {
-        const result = COMMANDS[cmd](args);
-        if (result && result.startsWith("__SSH_AUTH__")) {
-            const host = result.split("__SSH_AUTH__")[1];
-            return `__NEED_PASSWORD__${host}`;
-        }
-        return result;
-    }
-
-    // Typo hints
-    const similar = Object.keys(COMMANDS).find(c => levenshtein(c, cmd) <= 2);
-    if (similar) return `${cmd}: comando no encontrado. ¿Quisiste decir '${similar}'?`;
-    return `${cmd}: comando no encontrado. Escribe 'help' para ver los disponibles.`;
-}
-
-function levenshtein(a, b) {
-    const m = a.length, n = b.length;
-    const dp = Array.from({length:m+1}, (_,i) => Array.from({length:n+1}, (_,j) => i||j));
-    for (let i=1;i<=m;i++) for (let j=1;j<=n;j++)
-        dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-    return dp[m][n];
-}
-
-// ── OUTPUT RENDERING ─────────────────────────────────────
+// ── RENDERING ─────────────────────────────────────
 const output = document.getElementById("output");
 
 function print(text, color) {
@@ -325,106 +360,119 @@ function print(text, color) {
 
 function printPromptLine(cmd) {
     const line = document.createElement("div");
-    line.innerHTML = `<span style="color:var(--green)">${escHtml(prompt())} </span><span style="color:var(--text)">${escHtml(cmd)}</span>`;
+    line.innerHTML = `<span style="color:var(--green);font-size:12px;">${esc(getPrompt())} </span><span style="color:var(--text-bright);">${esc(cmd)}</span>`;
     output.appendChild(line);
     output.scrollTop = output.scrollHeight;
 }
 
-function escHtml(s) {
+function esc(s) {
     return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// ── SSH PASSWORD PROMPT ──────────────────────────────────
+function runCommand(input) {
+    const trimmed = input.trim();
+    if (!trimmed) return "";
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1);
+    if (COMMANDS[cmd]) {
+        const result = COMMANDS[cmd](args);
+        if (result?.startsWith("__SSH_AUTH__")) {
+            return `__NEED_PASSWORD__${result.split("__SSH_AUTH__")[1]}`;
+        }
+        return result;
+    }
+    const similar = Object.keys(COMMANDS).find(c => levenshtein(c, cmd) <= 2);
+    if (similar) return `${cmd}: comando no encontrado. ¿Quisiste decir '${similar}'?`;
+    return `${cmd}: comando no encontrado. Escribe 'help'.`;
+}
+
+function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({length:m+1}, (_,i) => Array.from({length:n+1}, (_,j) => i||j));
+    for (let i=1;i<=m;i++) for (let j=1;j<=n;j++)
+        dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    return dp[m][n];
+}
+
+// ── INPUT ──────────────────────────────────────────
 let awaitingPassword = false;
 let sshHost = null;
-
-// ── INPUT HANDLING ───────────────────────────────────────
-const input = document.getElementById("termInput");
+const inputEl = document.getElementById("termInput");
 const promptLabel = document.getElementById("promptLabel");
 
-input.addEventListener("keydown", e => {
+inputEl.addEventListener("keydown", e => {
     if (e.key === "Enter") {
-        const val = input.value;
+        const val = inputEl.value;
 
         if (awaitingPassword) {
             printPromptLine("(contraseña oculta)");
-            // Accept the hardcoded password from challenge 08
             if (val === "flag{hardcoded_p4ssw0rd}" || val === "hardcoded_p4ssw0rd") {
                 sshConnected = true;
                 cwdPath = ["~"];
-                print(`root@${sshHost}:~$ Autenticación exitosa.`, "var(--green)");
-                print(`\nBienvenido a 10.0.0.5 — Servidor Interno CyberCTF\nflag{ssh_root_connected}\n`, "var(--yellow)");
+                print(`\nBienvenido a 10.0.0.5 — Servidor Interno CyberCTF`, "var(--green)");
+                print(`flag{ssh_root_connected}\n`, "var(--yellow)");
             } else {
                 print(`${currentUser}@${sshHost}: Permission denied, please try again.`, "var(--red)");
             }
             awaitingPassword = false;
             sshHost = null;
-            input.value = "";
-            input.type = "text";
-            promptLabel.textContent = prompt();
+            inputEl.value = "";
+            inputEl.type = "text";
+            inputEl.placeholder = "escribe un comando…";
+            promptLabel.textContent = getPrompt();
             return;
         }
 
         history.unshift(val);
         histIdx = -1;
         printPromptLine(val);
-        input.value = "";
+        inputEl.value = "";
 
         const result = runCommand(val);
 
-        if (result && result.startsWith("__NEED_PASSWORD__")) {
+        if (result?.startsWith("__NEED_PASSWORD__")) {
             sshHost = result.split("__NEED_PASSWORD__")[1];
             awaitingPassword = true;
-            input.type = "password";
-            input.placeholder = "contraseña…";
+            inputEl.type = "password";
+            inputEl.placeholder = "contraseña…";
             print(`${currentUser}@${sshHost}'s password:`, "var(--text-dim)");
+            promptLabel.textContent = "";
             return;
         }
 
-        if (result !== "" && result !== undefined) {
-            print(result, result.includes("flag{") ? "var(--yellow)" : undefined);
+        if (result !== "" && result != null) {
+            print(result, result.includes("flag{") ? "var(--yellow)" : null);
         }
 
-        promptLabel.textContent = prompt();
+        promptLabel.textContent = getPrompt();
 
     } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (histIdx < history.length - 1) {
-            histIdx++;
-            input.value = history[histIdx];
-        }
+        if (histIdx < history.length - 1) { histIdx++; inputEl.value = history[histIdx]; }
     } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (histIdx > 0) {
-            histIdx--;
-            input.value = history[histIdx];
-        } else {
-            histIdx = -1;
-            input.value = "";
-        }
+        histIdx > 0 ? (histIdx--, inputEl.value = history[histIdx]) : (histIdx = -1, inputEl.value = "");
     } else if (e.key === "l" && e.ctrlKey) {
         e.preventDefault();
         clearTerm(false);
     }
 });
 
-function quickCmd(cmd) {
-    input.value = cmd;
-    input.focus();
-}
+function quickCmd(cmd) { inputEl.value = cmd; inputEl.focus(); }
 
 function clearTerm(printBoot = true) {
     output.innerHTML = "";
     if (printBoot) {
         print(BOOT, "var(--green)");
-        promptLabel.textContent = prompt();
+        promptLabel.textContent = getPrompt();
     }
 }
 
-// ── INIT ─────────────────────────────────────────────────
+// Init
 print(BOOT, "var(--green)");
-promptLabel.textContent = prompt();
-input.focus();
+promptLabel.textContent = getPrompt();
+inputEl.focus();
 </script>
 </body>
 </html>
