@@ -6,137 +6,273 @@
     <title>CyberCTF // RANKING GLOBAL</title>
     <link rel="stylesheet" href="style.css">
     <script src="api.js"></script>
+    <style>
+        .rank-row {
+            display: grid;
+            grid-template-columns: 56px 1fr 130px 140px;
+            align-items: center;
+            padding: 13px 16px;
+            border-radius: var(--radius);
+            border: 1px solid transparent;
+            margin-bottom: 6px;
+            transition: background .15s, border-color .15s;
+        }
+        .rank-row:hover { background: var(--bg3); border-color: var(--border); }
+        .rank-row.my-team {
+            background: rgba(0,212,255,0.04);
+            border-color: rgba(0,212,255,0.2);
+        }
+
+        .rank-number {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-dim);
+            text-align: center;
+        }
+        .rank-number.gold   { color: var(--yellow); text-shadow: 0 0 12px rgba(255,204,0,0.3); }
+        .rank-number.silver { color: var(--cyan); }
+        .rank-number.bronze { color: var(--green); }
+
+        .team-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-bright);
+        }
+
+        .team-members {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .member-tag {
+            font-size: 10px;
+            padding: 1px 8px;
+            border-radius: 10px;
+            background: var(--bg4);
+            border: 1px solid var(--border2);
+            color: var(--text-dim);
+        }
+
+        .rank-score {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--yellow);
+        }
+
+        .rank-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .rank-bar-track {
+            flex: 1;
+            height: 3px;
+            background: var(--border2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .rank-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--green-dim), var(--green));
+            box-shadow: 0 0 6px var(--green-glow);
+            transition: width .8s ease;
+        }
+
+        .auto-refresh-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+        .refresh-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: blink 2s step-end infinite;
+        }
+
+        .my-team-chip {
+            font-size: 10px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            background: rgba(0,212,255,0.1);
+            border: 1px solid rgba(0,212,255,0.25);
+            color: var(--cyan);
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        @media (max-width: 600px) {
+            .rank-row { grid-template-columns: 44px 1fr auto; }
+            .rank-bar-wrap { display: none; }
+        }
+    </style>
 </head>
 <body>
 
 <div class="nav">
     <div class="nav-brand">CYBERCTF</div>
     <div class="nav-links">
-        <a href="dashboard.html">DASHBOARD</a>
-        <a href="leaderboard.html" class="active">RANKING</a>
-        <a href="terminal.html">TERMINAL</a>
-        <a href="#" onclick="logout()">SALIR</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="leaderboard.html" class="active">Ranking</a>
+        <a href="terminal.html">Terminal</a>
+        <a href="#" onclick="logout()">Salir</a>
     </div>
-    <div class="nav-user">OP: <span id="navUser">—</span></div>
+    <div class="nav-user">
+        <span id="navUser">—</span>
+        <span class="team-badge" id="navTeam">—</span>
+    </div>
 </div>
 
 <div class="page-wrap">
 
-    <div class="panel fade-up">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0;">// TABLA DE CLASIFICACIÓN</h2>
-            <div style="display:flex; gap:8px; align-items:center;">
-                <span id="lastUpdate" style="font-size:11px; color:var(--text-dim);">—</span>
-                <button onclick="cargarRanking()" style="padding:6px 16px; font-size:10px;">↻ ACTUALIZAR</button>
-            </div>
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;" class="fade-up">
+        <div>
+            <h2 style="margin-bottom:4px;">Tabla de Clasificación</h2>
+            <div style="font-size:11px; color:var(--text-dim); letter-spacing:1px;">PUNTAJES POR EQUIPO</div>
         </div>
-
-        <!-- Podium top 3 -->
-        <div class="podium" id="podium"></div>
-
-        <!-- Full table -->
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:50px">#</th>
-                    <th>Operador</th>
-                    <th style="width:120px">Puntaje</th>
-                    <th style="width:130px">Progreso</th>
-                </tr>
-            </thead>
-            <tbody id="rankingBody">
-                <tr><td colspan="4" style="color:var(--text-dim); font-size:12px;">Cargando datos del servidor central…</td></tr>
-            </tbody>
-        </table>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div class="auto-refresh-badge">
+                <div class="refresh-dot"></div>
+                <span id="lastUpdate">—</span>
+            </div>
+            <button onclick="cargarRanking()" style="padding:7px 18px; font-size:10px;">↻ Actualizar</button>
+        </div>
     </div>
 
-    <div style="text-align:center; color:var(--text-dim); font-size:11px; letter-spacing:1px; padding-bottom:20px;">
-        AUTO-REFRESCO CADA 30 SEGUNDOS
+    <!-- Podium -->
+    <div class="panel fade-up fade-up-d1" style="padding: 28px 24px;">
+        <div class="podium" id="podium">
+            <div style="color:var(--text-dim); font-size:12px;">Cargando…</div>
+        </div>
+    </div>
+
+    <!-- Rankings list -->
+    <div class="panel fade-up fade-up-d2">
+        <div id="rankingBody">
+            <div style="color:var(--text-dim); font-size:12px; padding:12px 0;">Cargando rankings…</div>
+        </div>
+    </div>
+
+    <div style="text-align:center; padding-bottom:24px;">
+        <div class="auto-refresh-badge">
+            <div class="refresh-dot"></div>
+            <span style="letter-spacing:2px;">AUTO-REFRESCO CADA 30 SEGUNDOS</span>
+        </div>
     </div>
 </div>
 
 <script>
-const currentUser = localStorage.getItem("ctf_username");
-if (!currentUser) window.location.href = "index.html";
+const currentUser  = localStorage.getItem("ctf_username");
+const equipoId     = localStorage.getItem("ctf_equipo_id");
+const equipoNombre = localStorage.getItem("ctf_equipo_nombre") || "equipo";
+
+if (!currentUser || !equipoId) window.location.href = "index.html";
+
 document.getElementById("navUser").textContent = currentUser;
+document.getElementById("navTeam").textContent = equipoNombre;
 
 function logout() {
     localStorage.removeItem("ctf_username");
+    localStorage.removeItem("ctf_equipo_id");
+    localStorage.removeItem("ctf_equipo_nombre");
     window.location.href = "index.html";
 }
 
-const MAX_PTS = 30 * 200; // rough max for progress bar
+function esc(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// Cache members per team
+const membersCache = {};
+
+async function loadTeamMembers(tid) {
+    if (membersCache[tid]) return membersCache[tid];
+    try {
+        const m = await obtenerMiembrosEquipo(tid);
+        membersCache[tid] = m;
+        return m;
+    } catch { return []; }
+}
 
 async function cargarRanking() {
-    const tbody = document.getElementById("rankingBody");
-
     const datos = await obtenerLeaderboard();
+    const body = document.getElementById("rankingBody");
 
     if (datos.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='4' style='color:var(--text-dim);font-size:12px;'>No hay registros todavía.</td></tr>";
+        body.innerHTML = `<div style="color:var(--text-dim); font-size:12px; padding:12px;">Aún no hay equipos registrados.</div>`;
         return;
     }
 
-    // Podium (top 3)
+    // Podium
     const podium = document.getElementById("podium");
     const top3 = datos.slice(0, 3);
-    const order = [1, 0, 2]; // display order: 2nd, 1st, 3rd
+    const displayOrder = [1, 0, 2]; // 2nd, 1st, 3rd
     podium.innerHTML = "";
-    order.forEach(idx => {
+    displayOrder.forEach(idx => {
         if (!top3[idx]) return;
-        const u = top3[idx];
+        const t = top3[idx];
         const place = idx + 1;
         const el = document.createElement("div");
         el.className = `podium-item place-${place}`;
+        const labels = { 1: "★", 2: "▲", 3: "▲" };
         el.innerHTML = `
             <div class="podium-rank">#${place}</div>
-            <div class="podium-name">${escHtml(u.username)}</div>
-            <div class="podium-block">${place === 1 ? "★" : place}</div>
-            <div class="podium-score">${u.puntaje} pts</div>
+            <div class="podium-name">${esc(t.nombre)}</div>
+            <div class="podium-block">${labels[place]}</div>
+            <div class="podium-score">${t.puntaje.toLocaleString()} pts</div>
         `;
         podium.appendChild(el);
     });
 
-    // Table
-    tbody.innerHTML = "";
-    const maxScore = datos[0]?.puntaje || 1;
+    // Full list
+    const maxScore = Math.max(datos[0]?.puntaje || 1, 1);
+    body.innerHTML = "";
 
-    datos.forEach((user, i) => {
+    for (const [i, team] of datos.entries()) {
         const rank = i + 1;
-        const isMe = user.username === currentUser;
-        const pct = Math.round((user.puntaje / maxScore) * 100);
+        const isMe = team.id === equipoId;
+        const pct = Math.round((team.puntaje / maxScore) * 100);
 
-        const tr = document.createElement("tr");
-        if (isMe) tr.style.cssText = "background:rgba(0,255,136,.08); outline:1px solid rgba(0,255,136,.3);";
+        const rankClass = rank === 1 ? "gold" : rank === 2 ? "silver" : rank === 3 ? "bronze" : "";
 
-        let rankDisplay = `#${rank}`;
-        if (rank === 1) rankDisplay = `<span style="color:var(--yellow)">★ 1</span>`;
-        else if (rank === 2) rankDisplay = `<span style="color:var(--cyan)">▲ 2</span>`;
-        else if (rank === 3) rankDisplay = `<span style="color:var(--green)">▲ 3</span>`;
+        // Load members async
+        const members = await loadTeamMembers(team.id);
+        const memberTags = members.slice(0, 5).map(m =>
+            `<span class="member-tag">${esc(m.username)}</span>`
+        ).join("") + (members.length > 5 ? `<span class="member-tag">+${members.length-5}</span>` : "");
 
-        tr.innerHTML = `
-            <td style="font-family:var(--font-hud); font-size:13px;">${rankDisplay}</td>
-            <td>
-                ${isMe ? '<span style="color:var(--green); margin-right:6px;">▶</span>' : ''}
-                <span style="color:${isMe ? 'var(--green)' : 'var(--text)'}">${escHtml(user.username)}</span>
-                ${isMe ? '<span style="font-size:10px; color:var(--text-dim); margin-left:6px;">(tú)</span>' : ''}
-            </td>
-            <td style="font-family:var(--font-hud); color:var(--yellow); font-size:14px;">${user.puntaje} pts</td>
-            <td>
-                <div class="progress-track" style="margin:0;">
-                    <div class="progress-bar" style="width:${pct}%"></div>
+        const row = document.createElement("div");
+        row.className = `rank-row ${isMe ? 'my-team' : ''}`;
+        row.innerHTML = `
+            <div class="rank-number ${rankClass}">${rank}</div>
+            <div>
+                <div class="team-name">
+                    ${isMe ? '▶ ' : ''}${esc(team.nombre)}
+                    ${isMe ? `<span class="my-team-chip">tu equipo</span>` : ''}
                 </div>
-            </td>
+                <div class="team-members">${memberTags || '<span class="member-tag" style="color:var(--text-dim)">sin miembros</span>'}</div>
+            </div>
+            <div class="rank-score">${team.puntaje.toLocaleString()}</div>
+            <div class="rank-bar-wrap">
+                <div class="rank-bar-track">
+                    <div class="rank-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <span style="font-size:10px; color:var(--text-dim); width:32px; text-align:right;">${pct}%</span>
+            </div>
         `;
-        tbody.appendChild(tr);
-    });
+        body.appendChild(row);
+    }
 
     document.getElementById("lastUpdate").textContent =
-        "Actualizado: " + new Date().toLocaleTimeString("es-CL");
-}
-
-function escHtml(str) {
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        "Actualizado " + new Date().toLocaleTimeString("es-CL");
 }
 
 cargarRanking();
